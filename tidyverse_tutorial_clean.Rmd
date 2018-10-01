@@ -9,11 +9,11 @@ Starting note: The best reference for this material is Hadley Wickham's [R for d
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-library(DT) # dependency
-library(ggthemes) # dependency
-library(wordbankr)
-library(purrr)
-library(shiny)
+# library(DT) # dependency
+# library(ggthemes) # dependency
+# library(wordbankr)
+# library(purrr)
+# library(shiny)
 
 knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
 ```
@@ -45,9 +45,12 @@ head(iris)
 
 ```{r}
 # fill me in with calls to the iris dataset that all return the same cell (third from the top, Petal Length).
+iris[3,3]
+iris$Petal.Length[3]
+iris[3,"Petal.Length"]
+iris[["Petal.Length"]][3]
 
 ```
-
 
 > **Discussion.** Why might some ways of doing this be better than others? 
 
@@ -80,7 +83,7 @@ mean(iris$Petal.Length)
 
 We're going to call this **applying** the function `mean` to the variable `Petal.Length`.
 
-Pipes are a way to write strings of functions more easily. They bring the first argument of the function to the bedginning. So you can write:
+Pipes are a way to write strings of functions more easily. They bring the first argument of the function to the beginning. So you can write:
 
 ```{r}
 iris$Petal.Length %>% mean()
@@ -89,7 +92,7 @@ iris$Petal.Length %>% mean()
 That's not very useful yet, but when you start **nesting** functions, it gets better. 
 
 ```{r}
-mean(unique(iris$Petal.Length))
+mean(unique(sort(iris$Petal.Length)))
 iris$Petal.Length %>% unique() %>% mean()
 iris$Petal.Length %>% unique %>% mean
 ```
@@ -103,7 +106,11 @@ round(mean(unique(iris$Petal.Length)),
 iris$Petal.Length %>% unique %>% mean %>% round(digits = 2)
 
 # indenting makes things even easier to read
-...
+iris$Petal.Length %>% 
+  unique %>% 
+  mean %>% 
+  round(digits = 2)
+
 ```
 
 This can be super helpful for writing strings of functions so that they are readable and distinct. 
@@ -119,7 +126,7 @@ length(unique(iris$Species)) # number of species
 Piped version:
 
 ```{r}
-
+iris$Species %>% unique %>% length
 ```
 
 ## `ggplot2` and tidy data
@@ -131,8 +138,15 @@ The last piece of our workflow here is going to be the addition of visualiation 
 
 ```{r}
 iris %>%
-  ggplot(aes(x = Sepal.Width, y = Sepal.Length, col = Species)) + 
-  geom_point()
+  # do some stuff %>%
+  filter(!(Species == "virginica")) %>%
+  ggplot(aes(x = Sepal.Width, y = Sepal.Length, 
+             col = Species, size = Petal.Length)) + 
+  geom_point(alpha = .5) + 
+  facet_grid(.~Species) + 
+  xlab("Sepal Width (cm)") + 
+  ylab("Sepal Length (cm)")
+
 ```
 
 And just to let you know my biases, I like `theme_few` from `ggthemes` and `scale_color_solarized` as my palette.  
@@ -158,8 +172,8 @@ We are going to manipulate these data using "verbs" from `dplyr`. I'll only teac
 
 + `filter` - remove rows by some logical condition
 + `mutate` - create new columns 
++ `summarize` - apply some function over columns 
 + `group_by` - group the data into subsets by some column
-+ `summarize` - apply some function over columns in each group  
 
 
 ## Exploring and characterizing the dataset
@@ -167,7 +181,7 @@ We are going to manipulate these data using "verbs" from `dplyr`. I'll only teac
 
 ```{r}
 sgf <- read_csv("data/stiller_scales_data.csv")
-sgf
+head(sgf)
 ```
 
 Inspect the various variables before you start any analysis. Lots of people recommend `summary` but TBH I don't find it useful. 
@@ -203,7 +217,19 @@ So if you wanted to look only at two year olds, you could do this.
 
 ```{r}
 sgf %>%
-  filter(age > 2 & age < 3)
+  filter(age >= 2 & age < 3)
+
+filter(sgf, age >= 2 & age < 3)
+
+sgf %>%
+  filter(age >= 2, 
+         age < 3, 
+         condition == "Label")
+
+sgf[sgf$age >= 2 & sgf$age < 3 & sgf$condition == "Label", ]
+
+with(sgf, sgf[age >= 2 & age < 3 & condition == "Label", ])
+
 ```
 
 
@@ -247,6 +273,13 @@ sgf %>%
   select(starts_with("sub")) 
 
 # learn about this with ?select
+?select
+
+
+# ju example
+ju %>%
+  select(WorkerId, Input.condition, starts_with("Answer")) %>%
+  filter(Input.condition == "over")
 ```
 
 Perhaps more useful is *adding columns*. You might do this perhaps to compute some kind of derived variable. `mutate` is the verb for these situations - it allows you to add a column. Let's add a discrete age group factor to our dataset.
@@ -254,9 +287,14 @@ Perhaps more useful is *adding columns*. You might do this perhaps to compute so
 ```{r}
 sgf <- sgf %>%
   mutate(age_group = cut(age, 2:5, include.lowest = TRUE), 
-         foo = age * 7)
+         age_group_halfyear = cut(age, 
+                                  seq(2,5,.5), 
+                                  include.lowest = TRUE))
 
 head(sgf)
+
+sgf %>%
+  filter(age_group == "[2,3]")
 ```
 
 Recoding.
@@ -285,9 +323,9 @@ What `summarise` does is to *apply a function* to a part of the dataset to creat
 ```{r}
 ## DO NOT DO THIS!!!
 # foo <- initialize_the_thing_being_bound()
-# for (i in 1:length(unique(sgf$item))) {
+# for (i in 1:length(unique(sgf$subid))) {
 #   for (j in 1:length(unique(sgf$condition))) {
-#     this_data <- sgf[sgf$item == unique(sgf$item)[i] & 
+#     this_data <- sgf[sgf$subid == unique(sgf$subid)[i] & 
 #                       sgf$condition == unique(sgf$condition)[n],]
 #     do_a_thing(this_data)
 #     bind_together_somehow(this_data)
@@ -295,12 +333,14 @@ What `summarise` does is to *apply a function* to a part of the dataset to creat
 # }
 
 sgf %>%
-  summarise(correct = mean(correct))
+  group_by(subid, condition, age) %>%
+  summarise(mean_correct = mean(correct))
 ```
 Note the syntax here: `summarise` takes multiple  `new_column_name = function_to_be_applied_to_data(data_column)` entries in a list. Using this syntax, we can create more elaborate summary datasets also:
 
 ```{r}
 sgf %>%
+  group_by(condition) %>%
   summarise(correct = mean(correct), 
             n_observations = length(subid))
 ```

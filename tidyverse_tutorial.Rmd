@@ -1,7 +1,7 @@
 ---
-title: "Medium Data in the Tidyverse"
+title: "Analyzing Psychology Data in the Tidyverse"
 author: "Mike Frank"
-date: "6/22/2017"
+date: "10/1/2018"
 output: html_document
 ---
 
@@ -192,7 +192,7 @@ sgf$subid %>%
 Or use interactive tools like `View` or `DT::datatable` (which I really like).
 
 ```{r}
-View(sgf)
+#View(sgf)
 DT::datatable(sgf)
 ```
 
@@ -529,30 +529,30 @@ The server then has the job of splitting the data by that field (for `ws_split`)
 The one fancy thing that's going on here is that the app makes use of the calls `group_by_` (in the `dplyr` chain) and `aes_` (for the `ggplot` call). These `_` functions are a little complex - they are an example of "standard evaluation" that lets you feed *actual variables* into `ggplot2` and `dplyr` rather than *names of variables*. For more information, there is a nice vignette on standard and non-standard evaluation: try `(vignette("nse")`.
 
 ```{r}
-shinyApp(
-  ui <- fluidPage(
-    selectInput("demographic", "Demographic Split Variable", 
-                c("Sex" = "sex", "Maternal Education" = "mom_ed",
-                  "Birth Order" = "birth_order", "Ethnicity" = "ethnicity")),
-    plotOutput("agePlot")
-  ),
-  
-  server <- function(input, output) {
-    ws_split <- reactive({
-      ws %>%
-        group_by_("age", input$demographic) %>%
-        summarise(production_mean = mean(production))
-    })
-    
-    output$agePlot <- renderPlot({
-      ggplot(ws_split(), 
-             aes_(quote(age), quote(production_mean), col = as.name(input$demographic))) + 
-        geom_line() 
-    })
-  },
-  
-  options = list(height = 500)
-)
+# shinyApp(
+#   ui <- fluidPage(
+#     selectInput("demographic", "Demographic Split Variable", 
+#                 c("Sex" = "sex", "Maternal Education" = "mom_ed",
+#                   "Birth Order" = "birth_order", "Ethnicity" = "ethnicity")),
+#     plotOutput("agePlot")
+#   ),
+#   
+#   server <- function(input, output) {
+#     ws_split <- reactive({
+#       ws %>%
+#         group_by_("age", input$demographic) %>%
+#         summarise(production_mean = mean(production))
+#     })
+#     
+#     output$agePlot <- renderPlot({
+#       ggplot(ws_split(), 
+#              aes_(quote(age), quote(production_mean), col = as.name(input$demographic))) + 
+#         geom_line() 
+#     })
+#   },
+#   
+#   options = list(height = 500)
+# )
 ```
 
 ## Function application 
