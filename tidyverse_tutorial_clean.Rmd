@@ -340,9 +340,10 @@ Note the syntax here: `summarise` takes multiple  `new_column_name = function_to
 
 ```{r}
 sgf %>%
-  group_by(condition) %>%
-  summarise(correct = mean(correct), 
-            n_observations = length(subid))
+  group_by(condition, age_group) %>%
+  summarise(sd = sd(correct), 
+            mean = mean(correct),
+            n_observations = n())
 ```
 
 Where these two verbs shine is in combination, though. Because `summarise` applies functions to columns in your *grouped data*, not just to the whole dataset!
@@ -351,9 +352,11 @@ So we can group by age or condition or whatever else we want and then carry out 
 
 ```{r}
 sgf_means <- sgf %>%
-  group_by(age_group, condition) %>%
-  summarise(correct = mean(correct), 
-            n_observations = length(subid))
+  group_by(condition) %>%
+  summarise(mean = mean(correct), 
+            n_observations = length(subid), 
+            sd = sd(correct))
+
 sgf_means
 ```
 
@@ -361,17 +364,37 @@ These summary data are typically very useful for plotting. .
 
 ```{r}
 ggplot(sgf_means, 
-       aes(x = age_group, y = correct, col = condition, group = condition)) + 
+       aes(x = age_group, y = correct, col = condition, 
+           group = condition)) + 
   geom_line() + 
-  ylim(0,1) +
-  ggthemes::theme_few()
+  ylim(0,1) 
 ```
 
 > **Exercise.** One of the most important analytic workflows for psychological data is to take some function (e.g., the mean) *for each participant* and then look at grand means and variability *across participant means*. This analytic workflow requires grouping, summarising, and then grouping again and summarising again! Use `dplyr` to make the same table as above (`sgf_means`) but with means (and SDs if you want) computed across subject means, not across all data points. (The means will be pretty similar as this is a balanced design but in a case with lots of missing data, they will vary. In contrast, the SD doesn't even really make sense across the binary data before you aggregate across subjects.) 
 
 ```{r}
 # exercise
+sgf_sub_means <- sgf %>%
+  group_by(subid, condition) %>%
+  summarise(sub_mean = mean(correct), 
+            sub_sd = sd(correct))
 
+sgf_grand_means <- sgf_sub_means %>%
+  group_by(condition) %>%
+  summarise(condition_mean = mean(sub_mean), 
+            condition_sd = sd(sub_mean), 
+            n = n())
+
+# tricky but efficient
+sgf_grand_means2 <- sgf %>%
+  group_by(condition, subid) %>%
+  summarise(sub_mean = mean(correct), 
+            sub_sd = sd(correct)) %>%
+  summarise(condition_mean = mean(sub_mean), 
+            condition_sd = sd(sub_mean), 
+            n = n())
+
+sgf_grand_means2
 ```
 
 <!-- ----------------------------------------------------------------------- -->
@@ -417,7 +440,14 @@ head(sgf)
 There are lots of flexible ways to specify these columns - you can enumerate their names like I did. 
 
 ```{r}
+sgf_wide %>% 
+  gather(item, correct, 6:9)
 
+sgf_wide %>% 
+  gather(item, correct, faces:pasta)
+
+sgf_wide %>% 
+  gather(item, correct, starts_with("be"))
 ```
 
 > **Exercise.** Take the Sklar data from above, where each column is a separate subject, and `gather` it so that it's a tidy dataset. What challenges come up? 
@@ -428,7 +458,7 @@ sklar
 
 ```{r}
 sklar_tidy <- sklar %>%
-  # fill me in ...
+  gather(subid, rt, `1`:`21`)
 
 sklar_tidy
 ```
@@ -592,7 +622,10 @@ Here's a toy example, again with Wordbank data.
 ws %>%
   filter(!is.na(sex)) %>%
   group_by(sex) %>%
-  do(broom::tidy(lm(production ~ age, data = .)))
+  do(broom::tidy(lm(production ~ age, data = .))) %>%
+  filter(term == "age") %>%
+  ggplot(aes(x = sex, y = estimate)) +
+  geom_bar(stat = "identity")
 ```
 
 In recent years, this workflow in R ihas gotten really good. `purrr` is an amazing package that introduces consistent ways to `map` functions. It's beyond the scope of the course. 
